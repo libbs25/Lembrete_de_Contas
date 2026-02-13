@@ -1,0 +1,8 @@
+{
+  "name": "LIBRAS77 Finance",
+  "description": "A comprehensive financial management application for tracking payments and debts with AI-powered analysis features.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
