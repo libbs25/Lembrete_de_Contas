@@ -1,32 +1,50 @@
 
 import React, { useState } from 'react';
-import { Search, Edit3, Trash2, Undo2, Check, AlertCircle, ShoppingCart, Wifi, Home as HomeIcon, CreditCard } from 'lucide-react';
-import { Bill, BillStatus, Category, Language } from '../types';
+import { Edit3, Trash2, Undo2, Check, AlertCircle, TrendingUp, DollarSign, ArrowUpRight, ArrowDownLeft, FileText } from 'lucide-react';
+import { Bill, BillStatus, BillType, Language, Income, IncomeCategory } from '../types';
 
 interface HomeProps {
   bills: Bill[];
+  incomes: Income[];
   onToggleStatus: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (bill: Bill) => void;
+  onDeleteIncome: (id: string) => void;
+  onEditIncome: (income: Income) => void;
   language: Language;
 }
 
-const Home: React.FC<HomeProps> = ({ bills, onToggleStatus, onDelete, onEdit, language }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'paid'>('pending');
-  const [search, setSearch] = useState('');
+const Home: React.FC<HomeProps> = ({ 
+  bills, 
+  incomes,
+  onToggleStatus, 
+  onDelete, 
+  onEdit, 
+  onDeleteIncome,
+  onEditIncome,
+  language 
+}) => {
+  const [activeTab, setActiveTab] = useState<'pending' | 'paid' | 'income'>('pending');
 
   const filteredBills = bills.filter(bill => {
-    const matchesSearch = bill.name.toLowerCase().includes(search.toLowerCase());
-    if (activeTab === 'paid') return matchesSearch && bill.status === BillStatus.PAID;
-    return matchesSearch && bill.status !== BillStatus.PAID;
+    if (activeTab === 'paid') return bill.status === BillStatus.PAID;
+    if (activeTab === 'pending') return bill.status !== BillStatus.PAID;
+    return false;
   });
 
-  const getCategoryIcon = (category: Category) => {
+  const getBillTypeIcon = (type: BillType) => {
+    switch (type) {
+      case BillType.OWED_TO_ME: return <ArrowUpRight className="text-emerald-500" />;
+      case BillType.OWED_BY_ME: return <ArrowDownLeft className="text-red-500" />;
+      default: return <FileText className="text-blue-500" />;
+    }
+  };
+
+  const getIncomeIcon = (category: IncomeCategory) => {
     switch (category) {
-      case Category.UTILIDADES: return <Wifi className="text-slate-500" />;
-      case Category.ALIMENTACAO: return <ShoppingCart className="text-blue-500" />;
-      case Category.MORADIA: return <HomeIcon className="text-blue-500" />;
-      default: return <CreditCard className="text-blue-500" />;
+      case IncomeCategory.SALARIO: return <DollarSign className="text-emerald-500" />;
+      case IncomeCategory.INVESTIMENTO: return <TrendingUp className="text-emerald-500" />;
+      default: return <TrendingUp className="text-emerald-500" />;
     }
   };
 
@@ -40,27 +58,16 @@ const Home: React.FC<HomeProps> = ({ bills, onToggleStatus, onDelete, onEdit, la
   };
 
   const t = {
-    searchPlaceholder: language === 'pt' ? 'Pesquisar contas...' : 'Search bills...',
     pending: language === 'pt' ? 'Pendentes' : 'Pending',
     paid: language === 'pt' ? 'Pagas' : 'Paid',
-    empty: language === 'pt' ? 'Nenhuma conta encontrada' : 'No bills found',
+    income: language === 'pt' ? 'Receitas' : 'Income',
+    empty: language === 'pt' ? 'Nenhum registro encontrado' : 'No records found',
     paidOn: language === 'pt' ? 'Pago em' : 'Paid on',
+    receivedOn: language === 'pt' ? 'Recebido em' : 'Received on',
   };
 
   return (
     <div className="p-4 space-y-4">
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input 
-          type="text" 
-          placeholder={t.searchPlaceholder}
-          className="w-full bg-slate-100 dark:bg-slate-800/50 border dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
       {/* Tabs */}
       <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl">
         <button 
@@ -77,7 +84,7 @@ const Home: React.FC<HomeProps> = ({ bills, onToggleStatus, onDelete, onEdit, la
         </button>
       </div>
 
-      {/* Bill List */}
+      {/* List */}
       <div className="space-y-4">
         {filteredBills.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
@@ -92,63 +99,78 @@ const Home: React.FC<HomeProps> = ({ bills, onToggleStatus, onDelete, onEdit, la
             return (
               <div 
                 key={bill.id} 
-                className={`bg-white dark:bg-[#1E293B] border-2 rounded-2xl p-4 flex gap-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 ${isPaid ? 'border-green-500/50 shadow-green-500/5' : isOverdue ? 'border-red-500/50 shadow-red-500/5' : 'border-slate-200 dark:border-slate-800'}`}
+                className={`bg-white dark:bg-[#1E293B] border-2 rounded-2xl p-2.5 flex gap-3 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 ${isPaid ? 'border-green-500/50 shadow-green-500/5' : isOverdue ? 'border-red-500/50 shadow-red-500/5' : 'border-slate-200 dark:border-slate-800'}`}
               >
-                {/* Icon */}
-                <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center flex-shrink-0">
-                  {getCategoryIcon(bill.category)}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg">{bill.name}</h3>
-                    {isOverdue && <AlertCircle size={16} className="text-red-500" />}
+                  <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {bill.imageUrl ? (
+                      <img src={bill.imageUrl} alt={bill.name} className="w-full h-full object-cover" />
+                    ) : (
+                      getBillTypeIcon(bill.type)
+                    )}
                   </div>
-                  <p className="text-blue-600 dark:text-blue-400 font-black text-xl">
-                    R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <span className="inline-block px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg text-xs font-medium">
-                    {bill.category}
-                  </span>
-                  {isPaid && (
-                    <p className="text-green-500 text-xs font-semibold mt-1">
-                      {t.paidOn} {new Date(bill.paidDate!).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')}
+                  <div className="flex-1 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base leading-tight">{bill.name}</h3>
+                      {isOverdue && <AlertCircle size={14} className="text-red-500" />}
+                    </div>
+                    <p className={`font-black text-lg leading-tight ${bill.type === BillType.OWED_TO_ME ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                      R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                  )}
-                </div>
-
-                {/* Actions & Date */}
-                <div className="flex flex-col items-end justify-between">
-                  <div className="bg-blue-600 text-white rounded-xl p-2 min-w-[50px] text-center shadow-sm">
-                    <div className="text-sm font-bold leading-tight">{day}</div>
-                    <div className="text-[10px] font-bold leading-tight">{month} /</div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`inline-block px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${
+                        bill.type === BillType.OWED_TO_ME 
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' 
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                      }`}>
+                        {bill.type}
+                      </span>
+                    </div>
+                    {bill.description && (
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 italic line-clamp-1 mt-0.5">
+                        "{bill.description}"
+                      </p>
+                    )}
+                    {isPaid && (
+                      <p className="text-green-500 text-[10px] font-semibold mt-0.5">
+                        {t.paidOn} {new Date(bill.paidDate!).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-2 mt-2">
-                    <button 
-                      onClick={() => onEdit(bill)}
-                      className="text-slate-400 hover:text-blue-500 transition-colors p-1"
-                    >
-                      <Edit3 size={18} />
-                    </button>
-                    <button 
-                      onClick={() => onToggleStatus(bill.id)}
-                      className={`transition-colors p-1 ${isPaid ? 'text-yellow-500' : 'text-green-500'}`}
-                    >
-                      {isPaid ? <Undo2 size={18} /> : <Check size={18} />}
-                    </button>
-                    <button 
-                      onClick={() => onDelete(bill.id)}
-                      className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                  <div className="flex flex-col items-end justify-between">
+                    <div className="flex items-start gap-2">
+                      <button 
+                        onClick={() => onDelete(bill.id)}
+                        className="text-slate-400 hover:text-red-500 transition-colors p-0.5"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <div className="bg-blue-600 text-white rounded-xl p-1.5 min-w-[45px] text-center shadow-sm">
+                        <div className="text-xs font-bold leading-tight">{day}</div>
+                        <div className="text-[9px] font-bold leading-tight">{month}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <button 
+                        onClick={() => onEdit(bill)}
+                        className="text-slate-400 hover:text-blue-500 transition-colors p-0.5"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          onToggleStatus(bill.id);
+                          if (isPaid) setActiveTab('pending');
+                        }}
+                        className={`transition-colors p-0.5 ${isPaid ? 'text-yellow-500' : 'text-green-500'}`}
+                      >
+                        {isPaid ? <Undo2 size={16} /> : <Check size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
       </div>
     </div>
   );

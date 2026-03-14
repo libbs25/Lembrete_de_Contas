@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Home as HomeIcon, Calendar, PieChart, User as UserIcon, Plus, Bell } from 'lucide-react';
-import { User } from '../types';
+import { User, Language } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,7 +10,9 @@ interface LayoutProps {
   onNavigate: (page: any) => void;
   user: User;
   onAddClick: () => void;
+  onAddIncomeClick: () => void;
   unreadNotifications?: number;
+  language?: Language;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
@@ -20,7 +22,9 @@ export const Layout: React.FC<LayoutProps> = ({
   onNavigate, 
   user, 
   onAddClick,
-  unreadNotifications = 0
+  onAddIncomeClick,
+  unreadNotifications = 0,
+  language = 'pt'
 }) => {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -55,14 +59,17 @@ export const Layout: React.FC<LayoutProps> = ({
         {children}
       </main>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Buttons */}
       {currentPage === 'home' && (
-        <button 
-          onClick={onAddClick}
-          className="fixed bottom-24 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg transform transition-transform active:scale-95 hover:scale-110 z-30"
-        >
-          <Plus size={32} />
-        </button>
+        <div className="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
+          <button 
+            onClick={onAddClick}
+            title={language === 'pt' ? 'Nova Conta' : 'New Bill'}
+            className="w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg transform transition-transform active:scale-95 hover:scale-110"
+          >
+            <Plus size={32} />
+          </button>
+        </div>
       )}
 
       {/* Bottom Navigation */}
@@ -77,19 +84,13 @@ export const Layout: React.FC<LayoutProps> = ({
           icon={<Calendar size={24} />} 
           label="Calendário" 
           active={currentPage === 'calendar'} 
-          onClick={() => {}} 
+          onClick={() => onNavigate('calendar')} 
         />
         <NavItem 
           icon={<PieChart size={24} />} 
           label="Relatório" 
           active={currentPage === 'reports'} 
           onClick={() => onNavigate('reports')} 
-        />
-        <NavItem 
-          icon={<UserIcon size={24} />} 
-          label="Perfil" 
-          active={['profile', 'settings', 'devtools'].includes(currentPage)} 
-          onClick={() => onNavigate('profile')} 
         />
       </nav>
     </div>

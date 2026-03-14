@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (optional)
+    //   - email: string (required, email format)
+    //   - avatar: string (optional, url)
+    //   - createdAt: string (optional, date-time)
+    //
+    // Collection: bills
+    // Document ID: {billId}
+    // Fields:
+    //   - id: string (optional)
+    //   - name: string (required, min 1, max 100)
+    //   - amount: number (required, positive)
+    //   - type: string (required, ['Eu devo', 'Me devem'])
+    //   - description: string (optional)
+    //   - imageUrl: string (optional)
+    //   - dueDate: string (required, YYYY-MM-DD)
+    //   - paidDate: string (optional, YYYY-MM-DD)
+    //   - status: string (required, ['paid', 'pending', 'overdue'])
+    //   - uid: string (required, matches owner)
+    //   - createdAt: string (optional, date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "esylva83@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDate(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidDateTime(dateTimeStr) {
+      return dateTimeStr is string && dateTimeStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             isValidEmail(data.email) &&
+             (!('name' in data) || (data.name is string && data.name.size() < 100)) &&
+             (!('avatar' in data) || (data.avatar is string && data.avatar.size() < 500)) &&
+             (!('createdAt' in data) || isValidDateTime(data.createdAt));
+    }
+
+    function isValidBill(data) {
+      return data.keys().hasAll(['name', 'amount', 'dueDate', 'status', 'uid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.amount is number && data.amount >= 0 &&
+             (!('type' in data) || data.type in ['Eu devo', 'Me devem']) &&
+             isValidDate(data.dueDate) &&
+             data.status in ['paid', 'pending', 'overdue'] &&
+             data.uid == request.auth.uid &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000000)) && // Allow large base64
+             (!('paidDate' in data) || data.paidDate == null || isValidDate(data.paidDate)) &&
+             (!('createdAt' in data) || isValidDateTime(data.createdAt));
+    }
+
+    function isValidIncome(data) {
+      return data.keys().hasAll(['name', 'amount', 'category', 'date', 'uid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.amount is number && data.amount >= 0 &&
+             data.category is string &&
+             isValidDate(data.date) &&
+             data.uid == request.auth.uid &&
+             (!('createdAt' in data) || isValidDateTime(data.createdAt));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && isValidUser(request.resource.data);
+      allow update: if isOwner(uid) && isValidUser(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
+      allow delete: if isAdmin();
+    }
+
+    match /bills/{billId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidBill(request.resource.data);
+      allow update: if isDocOwner() && isValidBill(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /incomes/{incomeId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidIncome(request.resource.data);
+      allow update: if isDocOwner() && isValidIncome(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

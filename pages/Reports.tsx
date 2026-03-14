@@ -1,51 +1,95 @@
 
 import React, { useMemo } from 'react';
-import { Bill, BillStatus, Language } from '../types';
-import { TrendingUp, CheckCircle, AlertTriangle, Calendar } from 'lucide-react';
+import { Bill, BillStatus, Language, Income } from '../types';
+import { TrendingUp, CheckCircle, AlertTriangle, Calendar, DollarSign, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 interface ReportsProps {
   bills: Bill[];
+  incomes: Income[];
   language: Language;
 }
 
-const Reports: React.FC<ReportsProps> = ({ bills, language }) => {
+const Reports: React.FC<ReportsProps> = ({ bills, incomes, language }) => {
   const stats = useMemo(() => {
-    const totalCount = bills.length;
-    const paidCount = bills.filter(b => b.status === BillStatus.PAID).length;
-    const overdueCount = bills.filter(b => b.status === BillStatus.OVERDUE).length;
-    const pendingCount = bills.filter(b => b.status === BillStatus.PENDING).length;
-
+    const totalBillsCount = bills.length;
+    const paidBillsCount = bills.filter(b => b.status === BillStatus.PAID).length;
+    const overdueBillsCount = bills.filter(b => b.status === BillStatus.OVERDUE).length;
+    
     const totalPaid = bills.filter(b => b.status === BillStatus.PAID).reduce((acc, b) => acc + b.amount, 0);
     const totalOverdue = bills.filter(b => b.status === BillStatus.OVERDUE).reduce((acc, b) => acc + b.amount, 0);
     const totalPending = bills.filter(b => b.status === BillStatus.PENDING).reduce((acc, b) => acc + b.amount, 0);
-    const grandTotal = totalPaid + totalOverdue + totalPending;
+    
+    const totalIncome = incomes.reduce((acc, i) => acc + i.amount, 0);
+    const totalExpenses = totalPaid + totalOverdue + totalPending;
+    
+    // User requested: Total Income card = Paid bills, Total Expenses card = Unpaid bills
+    const displayIncome = totalPaid;
+    const displayExpenses = totalOverdue + totalPending;
+    const balance = totalIncome - totalExpenses;
 
-    return { totalCount, paidCount, overdueCount, pendingCount, totalPaid, totalOverdue, totalPending, grandTotal };
-  }, [bills]);
+    return { 
+      totalBillsCount, 
+      paidBillsCount, 
+      overdueBillsCount, 
+      totalPaid, 
+      totalOverdue, 
+      totalPending, 
+      totalIncome, 
+      totalExpenses, 
+      displayIncome,
+      displayExpenses,
+      balance 
+    };
+  }, [bills, incomes]);
 
   const t = {
     title: language === 'pt' ? 'Relatório' : 'Reports',
-    totalBills: language === 'pt' ? 'Total de Contas' : 'Total Bills',
-    paidBills: language === 'pt' ? 'Contas Pagas' : 'Paid Bills',
-    overdueBills: language === 'pt' ? 'Contas Atrasadas' : 'Overdue Bills',
-    upcomingBills: language === 'pt' ? 'Próximas Contas' : 'Upcoming Bills',
+    totalIncome: language === 'pt' ? 'Total de Receitas' : 'Total Income',
+    totalExpenses: language === 'pt' ? 'Total de Despesas' : 'Total Expenses',
+    balance: language === 'pt' ? 'Saldo Atual' : 'Current Balance',
     summaryTitle: language === 'pt' ? 'Resumo Financeiro' : 'Financial Summary',
     paidTotal: language === 'pt' ? 'Total Pago' : 'Total Paid',
     overdueTotal: language === 'pt' ? 'Total Atrasado' : 'Overdue Total',
     pendingTotal: language === 'pt' ? 'Total Pendente' : 'Pending Total',
-    grandTotal: language === 'pt' ? 'Total Geral' : 'Grand Total',
+    incomeTotal: language === 'pt' ? 'Receitas Totais' : 'Total Income',
   };
 
   return (
     <div className="p-4 space-y-6">
       <h2 className="text-2xl font-black mb-4">{t.title}</h2>
 
-      {/* Stat Cards Grid */}
+      {/* Main Stats */}
+      <div className="grid grid-cols-1 gap-4">
+        <div className={`bg-emerald-500 rounded-2xl p-6 text-white shadow-lg shadow-emerald-500/20 relative overflow-hidden`}>
+          <div className="relative z-10">
+            <p className="text-emerald-100 text-xs font-bold uppercase tracking-wider">{t.balance}</p>
+            <p className="text-4xl font-black mt-1">
+              R$ {stats.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <DollarSign size={80} className="absolute -right-4 -bottom-4 text-white/10" />
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
-        <StatCard title={t.totalBills} value={stats.totalCount} icon={<TrendingUp size={20} />} color="blue" />
-        <StatCard title={t.paidBills} value={stats.paidCount} icon={<CheckCircle size={20} />} color="green" />
-        <StatCard title={t.overdueBills} value={stats.overdueCount} icon={<AlertTriangle size={20} />} color="red" />
-        <StatCard title={t.upcomingBills} value={stats.pendingCount} icon={<Calendar size={20} />} color="yellow" />
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border-2 border-emerald-500/20">
+          <div className="flex items-center gap-2 text-emerald-500 mb-0.5">
+            <ArrowUpCircle size={14} />
+            <span className="text-[9px] font-bold uppercase tracking-wider">{t.totalIncome}</span>
+          </div>
+          <p className="text-lg font-black text-slate-800 dark:text-white">
+            R$ {stats.displayIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border-2 border-red-500/20">
+          <div className="flex items-center gap-2 text-red-500 mb-0.5">
+            <ArrowDownCircle size={14} />
+            <span className="text-[9px] font-bold uppercase tracking-wider">{t.totalExpenses}</span>
+          </div>
+          <p className="text-lg font-black text-slate-800 dark:text-white">
+            R$ {stats.displayExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
       </div>
 
       {/* Financial Summary */}
@@ -53,33 +97,15 @@ const Reports: React.FC<ReportsProps> = ({ bills, language }) => {
         <h3 className="text-xl font-bold">{t.summaryTitle}</h3>
         
         <div className="space-y-4">
-          <SummaryRow label={t.paidTotal} value={stats.totalPaid} color="text-green-500" />
+          <SummaryRow label={t.incomeTotal} value={stats.totalIncome} color="text-emerald-500" />
+          <SummaryRow label={t.paidTotal} value={stats.totalPaid} color="text-blue-500" />
           <SummaryRow label={t.overdueTotal} value={stats.totalOverdue} color="text-red-500" />
           <SummaryRow label={t.pendingTotal} value={stats.totalPending} color="text-yellow-500" />
           
           <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-            <SummaryRow label={t.grandTotal} value={stats.grandTotal} color="text-blue-500" bold />
+            <SummaryRow label={t.balance} value={stats.balance} color={stats.balance >= 0 ? "text-emerald-500" : "text-red-500"} bold />
           </div>
         </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ title, value, icon, color }: { title: string, value: number, icon: any, color: string }) => {
-  const colors: Record<string, string> = {
-    blue: 'border-l-blue-500 text-blue-500',
-    green: 'border-l-green-500 text-green-500',
-    red: 'border-l-red-500 text-red-500',
-    yellow: 'border-l-yellow-500 text-yellow-500'
-  };
-
-  return (
-    <div className={`bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4 border-l-4 ${colors[color]} relative`}>
-      <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-tight leading-tight">{title}</p>
-      <p className="text-2xl font-black mt-1 text-slate-800 dark:text-white">{value}</p>
-      <div className="absolute top-4 right-4 opacity-20">
-        {icon}
       </div>
     </div>
   );

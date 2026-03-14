@@ -1,66 +1,171 @@
 
-import React from 'react';
-import { Fingerprint } from 'lucide-react';
+import React, { useState } from 'react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { auth, googleProvider } from '../firebase';
+import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
 
 interface SplashProps {
   onLogin: () => void;
 }
 
 const Splash: React.FC<SplashProps> = ({ onLogin }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      onLogin();
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Erro ao entrar. Verifique suas credenciais.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      onLogin();
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError(err.message || 'Erro ao entrar com Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#606C38] flex flex-col items-center justify-between p-8 font-sans">
-      <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        {/* Character Logo */}
-        <div className="relative w-64 h-64 mb-4">
-          <svg viewBox="0 0 200 200" className="w-full h-full text-black">
-            <path d="M50 140 L150 140 L130 180 L70 180 Z" fill="currentColor" />
-            <path d="M40 80 Q50 30 70 50 L130 50 Q150 30 160 80 L140 130 L60 130 Z" fill="currentColor" />
-            {/* Mask */}
-            <rect x="70" y="85" width="60" height="20" rx="5" fill="#111" />
-            <text x="100" y="100" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">OC</text>
-            {/* Mouth */}
-            <path d="M80 115 Q100 130 120 115" stroke="white" strokeWidth="3" fill="none" />
-            <path d="M85 118 L90 125 L95 119 L100 126 L105 119 L110 126 L115 118" stroke="white" strokeWidth="2" fill="none" />
-            {/* Gem */}
-            <path d="M100 145 L115 160 L100 175 L85 160 Z" fill="#888" stroke="white" strokeWidth="1" />
-            {/* Horns */}
-            <path d="M75 55 L65 30 L85 50 Z" fill="currentColor" />
-            <path d="M125 55 L135 30 L115 50 Z" fill="currentColor" />
-          </svg>
-        </div>
-        <h1 className="text-5xl font-black text-black tracking-tight">LIBRAS77</h1>
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 font-montserrat text-white">
+      {/* Background subtle glow */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
       </div>
 
-      <div className="w-full max-w-sm flex flex-col gap-3">
-        <button 
-          onClick={onLogin}
-          className="w-full bg-black text-white font-semibold py-4 rounded-full flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all"
-        >
-          <Fingerprint size={24} />
-          Acesso Biométrico
-        </button>
+      <div className="w-full max-w-[400px] z-10">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-extrabold tracking-tighter mb-2">
+            ORDEM<span className="text-blue-500">FY</span>
+          </h1>
+          <p className="text-gray-400 text-sm font-medium">
+            Sistema de gestão para assistências técnicas
+          </p>
+        </div>
 
-        <button 
-          onClick={onLogin}
-          className="w-full bg-white text-slate-800 font-semibold py-4 rounded-full flex items-center justify-center gap-3 shadow-md active:scale-95 transition-transform"
-        >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-          Continuar com o Google
-        </button>
-        
-        <div className="flex gap-3">
-          <button 
-            onClick={onLogin}
-            className="flex-1 bg-[#D1D5DB] text-slate-800 font-semibold py-4 rounded-full shadow-md active:scale-95 transition-transform"
-          >
-            Cadastrar
-          </button>
-          <button 
-            onClick={onLogin}
-            className="flex-1 border border-black text-black font-semibold py-4 rounded-full active:scale-95 transition-transform"
-          >
-            Entrar
-          </button>
+        <div className="bg-[#141414] border border-white/5 rounded-2xl p-8 shadow-2xl">
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold text-center">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">
+                E-mail
+              </label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors">
+                  <Mail size={18} />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="w-full bg-[#1a1a1a] border border-white/5 rounded-xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                  Senha
+                </label>
+                <button type="button" className="text-[10px] font-bold uppercase tracking-widest text-blue-500 hover:text-blue-400 transition-colors">
+                  Esqueceu?
+                </button>
+              </div>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-[#1a1a1a] border border-white/5 rounded-xl py-3.5 pl-12 pr-12 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-gray-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Entrando...' : 'Entrar na plataforma'}
+              {!loading && <ArrowRight size={18} />}
+            </button>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/5"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-[#141414] px-2 text-gray-500 font-bold tracking-widest">Ou continue com</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full bg-white hover:bg-gray-100 text-black font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+              {loading ? 'Carregando...' : 'Entrar com Google'}
+            </button>
+          </form>
+
+          <div className="mt-8 pt-8 border-t border-white/5 text-center space-y-4">
+            <p className="text-gray-500 text-sm">
+              Não tem uma conta?{' '}
+              <button onClick={onLogin} className="text-blue-500 font-bold hover:underline">
+                Cadastre-se
+              </button>
+            </p>
+            <button 
+              onClick={onLogin}
+              className="text-gray-600 text-xs font-bold uppercase tracking-widest hover:text-gray-400 transition-colors"
+            >
+              Entrar como Visitante
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center">
+          <p className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-bold">
+            © 2026 ORDEMFY • Todos os direitos reservados
+          </p>
         </div>
       </div>
     </div>

@@ -5,21 +5,38 @@ export enum BillStatus {
   OVERDUE = 'overdue'
 }
 
-export enum Category {
-  UTILIDADES = 'Utilidades',
-  ALIMENTACAO = 'Alimentação',
-  GERAL = 'Geral',
-  MORADIA = 'Moradia'
+export enum BillType {
+  OWED_BY_ME = 'Eu devo',
+  OWED_TO_ME = 'Me devem'
+}
+
+export enum IncomeCategory {
+  SALARIO = 'Salário',
+  INVESTIMENTO = 'Investimento',
+  FREELANCE = 'Freelance',
+  OUTROS = 'Outros'
 }
 
 export interface Bill {
   id: string;
   name: string;
   amount: number;
-  category: Category;
+  type: BillType;
+  description?: string;
+  imageUrl?: string;
   dueDate: string;
   paidDate?: string;
   status: BillStatus;
+  uid?: string;
+}
+
+export interface Income {
+  id: string;
+  name: string;
+  amount: number;
+  category: IncomeCategory;
+  date: string;
+  uid?: string;
 }
 
 export interface AppNotification {
