@@ -8,18 +8,25 @@ interface SettingsProps {
   setTheme: (t: ThemeMode) => void;
   language: Language;
   setLanguage: (l: Language) => void;
+  aiPersona: 'male' | 'female';
+  setAiPersona: (p: 'male' | 'female') => void;
   onBack: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ theme, setTheme, language, setLanguage, onBack }) => {
+const Settings: React.FC<SettingsProps> = ({ theme, setTheme, language, setLanguage, aiPersona, setAiPersona, onBack }) => {
   const t = {
     title: language === 'pt' ? 'Configurações' : 'Settings',
     langLabel: language === 'pt' ? 'Idioma' : 'Language',
     themeLabel: language === 'pt' ? 'Tema' : 'Theme',
+    botLabel: language === 'pt' ? 'Voz do Bot de Cobrança' : 'Collection Bot Voice',
     themes: {
       light: language === 'pt' ? 'Claro' : 'Light',
       dark: language === 'pt' ? 'Escuro' : 'Dark',
       system: language === 'pt' ? 'Sistema' : 'System',
+    },
+    personas: {
+      male: language === 'pt' ? 'Masculino (Robô)' : 'Male (Robot)',
+      female: language === 'pt' ? 'Feminino (Robô)' : 'Female (Robot)',
     }
   };
 
@@ -32,13 +39,22 @@ const Settings: React.FC<SettingsProps> = ({ theme, setTheme, language, setLangu
         <h2 className="text-2xl font-black">{t.title}</h2>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 pb-20">
         {/* Language Section */}
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest px-2">{t.langLabel}</h3>
           <div className="space-y-2">
             <RadioOption label="Português (Brasil)" active={language === 'pt'} onClick={() => setLanguage('pt')} />
             <RadioOption label="English (US)" active={language === 'en'} onClick={() => setLanguage('en')} />
+          </div>
+        </div>
+
+        {/* Bot Persona Section */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest px-2">{t.botLabel}</h3>
+          <div className="space-y-2">
+            <RadioOption label={t.personas.male} active={aiPersona === 'male'} onClick={() => setAiPersona('male')} />
+            <RadioOption label={t.personas.female} active={aiPersona === 'female'} onClick={() => setAiPersona('female')} />
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Edit3, Trash2, Undo2, Check, AlertCircle, TrendingUp, DollarSign, ArrowUpRight, ArrowDownLeft, FileText } from 'lucide-react';
-import { Bill, BillStatus, BillType, Language, Income, IncomeCategory } from '../types';
+import { Edit3, Trash2, Undo2, Check, AlertCircle, TrendingUp, DollarSign, ArrowUpRight, ArrowDownLeft, FileText, Bot } from 'lucide-react';
+import { Bill, BillStatus, BillType, Language, Income, IncomeCategory, AIPersona } from '../types';
 
 interface HomeProps {
   bills: Bill[];
@@ -11,6 +11,7 @@ interface HomeProps {
   onEdit: (bill: Bill) => void;
   onDeleteIncome: (id: string) => void;
   onEditIncome: (income: Income) => void;
+  onCollect: (bill: Bill) => void;
   language: Language;
 }
 
@@ -22,13 +23,15 @@ const Home: React.FC<HomeProps> = ({
   onEdit, 
   onDeleteIncome,
   onEditIncome,
+  onCollect,
   language 
 }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'paid' | 'income'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'overdue' | 'paid'>('pending');
 
   const filteredBills = bills.filter(bill => {
     if (activeTab === 'paid') return bill.status === BillStatus.PAID;
-    if (activeTab === 'pending') return bill.status !== BillStatus.PAID;
+    if (activeTab === 'overdue') return bill.status === BillStatus.OVERDUE;
+    if (activeTab === 'pending') return bill.status === BillStatus.PENDING;
     return false;
   });
 
@@ -59,8 +62,8 @@ const Home: React.FC<HomeProps> = ({
 
   const t = {
     pending: language === 'pt' ? 'Pendentes' : 'Pending',
+    overdue: language === 'pt' ? 'Atrasadas' : 'Overdue',
     paid: language === 'pt' ? 'Pagas' : 'Paid',
-    income: language === 'pt' ? 'Receitas' : 'Income',
     empty: language === 'pt' ? 'Nenhum registro encontrado' : 'No records found',
     paidOn: language === 'pt' ? 'Pago em' : 'Paid on',
     receivedOn: language === 'pt' ? 'Recebido em' : 'Received on',
@@ -77,8 +80,14 @@ const Home: React.FC<HomeProps> = ({
           {t.pending}
         </button>
         <button 
+          onClick={() => setActiveTab('overdue')}
+          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'overdue' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+        >
+          {t.overdue}
+        </button>
+        <button 
           onClick={() => setActiveTab('paid')}
-          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'paid' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'paid' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
         >
           {t.paid}
         </button>
@@ -135,6 +144,15 @@ const Home: React.FC<HomeProps> = ({
                         {t.paidOn} {new Date(bill.paidDate!).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')}
                       </p>
                     )}
+                    {isOverdue && bill.type === BillType.OWED_TO_ME && (
+                      <button 
+                        onClick={() => onCollect(bill)}
+                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                      >
+                        <Bot size={12} />
+                        Cobrar com IA
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-col items-end justify-between">
                     <div className="flex items-start gap-2">
@@ -159,7 +177,13 @@ const Home: React.FC<HomeProps> = ({
                       <button 
                         onClick={() => {
                           onToggleStatus(bill.id);
-                          if (isPaid) setActiveTab('pending');
+                          if (isPaid) {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const dueDate = new Date(bill.dueDate);
+                            dueDate.setHours(0, 0, 0, 0);
+                            setActiveTab(dueDate < today ? 'overdue' : 'pending');
+                          }
                         }}
                         className={`transition-colors p-0.5 ${isPaid ? 'text-yellow-500' : 'text-green-500'}`}
                       >

@@ -52,8 +52,11 @@ export interface AppNotification {
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'pt' | 'en';
 
+export type AIPersona = 'male' | 'female';
+
 export interface User {
   name: string;
   email: string;
   avatar?: string;
+  aiPersona?: AIPersona;
 }

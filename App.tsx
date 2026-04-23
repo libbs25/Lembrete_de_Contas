@@ -12,7 +12,8 @@ import NewBillModal from './components/NewBillModal';
 import NewIncomeModal from './components/NewIncomeModal';
 import EditProfileModal from './components/EditProfileModal';
 import DeleteAccountModal from './components/DeleteAccountModal';
-import { Bill, BillStatus, ThemeMode, User, AppNotification, Language, Income, IncomeCategory } from './types';
+import CollectionBotModal from './components/CollectionBotModal';
+import { Bill, BillStatus, ThemeMode, User, AppNotification, Language, Income, IncomeCategory, AIPersona } from './types';
 import { Layout } from './components/Layout';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -37,32 +38,41 @@ const App: React.FC = () => {
   const [isNewIncomeModalOpen, setIsNewIncomeModalOpen] = useState(false);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCollectionBotOpen, setIsCollectionBotOpen] = useState(false);
+  const [collectingBill, setCollectingBill] = useState<Bill | null>(null);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   
   const [user, setUser] = useState<User>(DEFAULT_USER);
+  const [aiPersona, setAiPersona] = useState<AIPersona>('female');
 
   // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        setIsLoggedIn(true);
-        setUser({
-          name: firebaseUser.displayName || 'Usuário',
-          email: firebaseUser.email || '',
-          avatar: firebaseUser.photoURL || `https://picsum.photos/seed/${firebaseUser.uid}/200`
-        });
-        
-        // Sync user profile to Firestore
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        setDoc(userRef, {
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || 'Usuário',
-          email: firebaseUser.email || '',
-          avatar: firebaseUser.photoURL || `https://picsum.photos/seed/${firebaseUser.uid}/200`,
-          updatedAt: new Date().toISOString()
-        }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`));
-
+        // Only log in if email is verified (or if it's a provider like Google which is usually verified)
+        if (firebaseUser.providerData.some(p => p.providerId === 'google.com') || firebaseUser.emailVerified) {
+          setIsLoggedIn(true);
+          setUser({
+            name: firebaseUser.displayName || 'Usuário',
+            email: firebaseUser.email || '',
+            avatar: firebaseUser.photoURL || `https://picsum.photos/seed/${firebaseUser.uid}/200`
+          });
+          
+          // Sync user profile to Firestore
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          setDoc(userRef, {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Usuário',
+            email: firebaseUser.email || '',
+            avatar: firebaseUser.photoURL || `https://picsum.photos/seed/${firebaseUser.uid}/200`,
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`));
+        } else {
+          setIsLoggedIn(false);
+          // Optional: we could sign out here to be safe, but then they can't see the "verify your email" message if we add one
+          // For now, just keep them on the splash screen
+        }
       } else {
         setIsLoggedIn(false);
         setUser(DEFAULT_USER);
@@ -154,6 +164,39 @@ const App: React.FC = () => {
     });
   }, [bills, language]);
 
+  // Automatic Overdue Status Update
+  useEffect(() => {
+    if (!isLoggedIn || bills.length === 0) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    bills.forEach(async (bill) => {
+      if (bill.status === BillStatus.PAID) return;
+
+      const dueDate = new Date(bill.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+
+      const isPastDue = dueDate < today;
+
+      if (isPastDue && bill.status !== BillStatus.OVERDUE) {
+        try {
+          const billRef = doc(db, 'bills', bill.id);
+          await updateDoc(billRef, { status: BillStatus.OVERDUE });
+        } catch (err) {
+          console.error('Error updating overdue status:', err);
+        }
+      } else if (!isPastDue && bill.status === BillStatus.OVERDUE) {
+        try {
+          const billRef = doc(db, 'bills', bill.id);
+          await updateDoc(billRef, { status: BillStatus.PENDING });
+        } catch (err) {
+          console.error('Error reverting overdue status:', err);
+        }
+      }
+    });
+  }, [bills, isLoggedIn]);
+
   const handleLogin = () => setIsLoggedIn(true);
   
   const handleLogout = async () => {
@@ -210,8 +253,18 @@ const App: React.FC = () => {
     try {
       const isCurrentlyPaid = bill.status === BillStatus.PAID;
       const billRef = doc(db, 'bills', id);
+      
+      let newStatus = BillStatus.PAID;
+      if (isCurrentlyPaid) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDate = new Date(bill.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        newStatus = dueDate < today ? BillStatus.OVERDUE : BillStatus.PENDING;
+      }
+
       await updateDoc(billRef, {
-        status: isCurrentlyPaid ? BillStatus.PENDING : BillStatus.PAID,
+        status: newStatus,
         paidDate: isCurrentlyPaid ? null : new Date().toISOString().split('T')[0]
       });
     } catch (err) {
@@ -317,6 +370,10 @@ const App: React.FC = () => {
           onEdit={handleStartEdit}
           onDeleteIncome={handleDeleteIncome}
           onEditIncome={handleStartEditIncome}
+          onCollect={(bill) => {
+            setCollectingBill(bill);
+            setIsCollectionBotOpen(true);
+          }}
           language={language}
         />;
       case 'reports': 
@@ -348,6 +405,8 @@ const App: React.FC = () => {
           setTheme={setTheme} 
           language={language}
           setLanguage={setLanguage}
+          aiPersona={aiPersona}
+          setAiPersona={setAiPersona}
           onBack={() => setCurrentPage('profile')} 
         />;
       case 'devtools': 
@@ -419,6 +478,18 @@ const App: React.FC = () => {
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}
             onConfirm={handleConfirmDeleteAccount}
+            language={language}
+          />
+
+          <CollectionBotModal
+            isOpen={isCollectionBotOpen}
+            onClose={() => {
+              setIsCollectionBotOpen(false);
+              setCollectingBill(null);
+            }}
+            bill={collectingBill}
+            persona={aiPersona}
+            userName={user.name}
             language={language}
           />
         </>
